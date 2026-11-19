@@ -1,23 +1,48 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cover Snap</title>
-<link rel="stylesheet" href="./style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10101b">
+  <title>ViceFrame — Cover Art Studio</title>
+  <link rel="stylesheet" href="./src/style.css">
+  <script type="module" src="./src/main.ts"></script>
 </head>
 <body>
-<main class="app">
-  <section class="controls">
-    <h1>Cover Snap</h1>
-    <p>A photo and a caption, made into a square cover.</p>
-    <label>Photo <input id="photo" type="file" accept="image/*"></label>
-    <label>Caption <input id="caption" type="text" maxlength="40" value="Sunset Heist"></label>
-    <button id="export" type="button">Export PNG 1080 x 1080</button>
-    <p id="status" role="status"></p>
-  </section>
-  <canvas id="cover" width="1080" height="1080" aria-label="The cover"></canvas>
-</main>
-<script type="module" src="./src/main.js"></script>
+  <header class="topbar"><a class="brand" href="#"><span class="brand-mark">V</span>VICE<span>FRAME</span></a><div class="top-note"><i></i> YOUR STORY. YOUR CITY.</div><button id="exportTop" class="export top-export">Export PNG <b>↗</b></button></header>
+  <main class="workspace">
+    <section class="editor">
+      <div class="eyebrow">COVER ART STUDIO <span>•</span> 01 / CREATE</div>
+      <h1>Make it<br><em>iconic.</em></h1>
+      <p class="intro">Build your own late-night legend. Pick a frame, drop in your photos, set the mood.</p>
+      <div class="step-head"><span>01</span><b>Choose your layout</b><small>3 TEMPLATES</small></div>
+      <div class="templates" role="group" aria-label="Layout template">
+        <button class="template selected" data-layout="collage"><span class="mini mini-collage"><i></i><i></i><i></i><i></i></span><b>Collage</b><small>OFFBEAT / ICONIC</small></button>
+        <button class="template" data-layout="grid"><span class="mini mini-grid"><i></i><i></i><i></i><i></i></span><b>Grid</b><small>CLEAN / CLASSIC</small></button>
+        <button class="template" data-layout="hero"><span class="mini mini-hero"><i></i><i></i><i></i></span><b>Hero</b><small>ONE MAIN EVENT</small></button>
+      </div>
+      <div class="step-head"><span>02</span><b>Build your scene</b><small id="photoCount">0 PHOTOS</small></div>
+      <label class="upload" for="photoInput"><span class="upload-icon">＋</span><span><b>Add your photos</b><small>Choose one or more images from your device</small></span><span class="upload-arrow">↗</span></label>
+      <input id="photoInput" type="file" accept="image/*" multiple hidden>
+      <div class="photo-tray" id="photoTray" aria-label="Your photos"></div>
+      <label class="field-label" for="caption">03 <b>Your headline</b></label>
+      <input class="text-input" id="caption" maxlength="30" value="SUNSET HEIST" aria-label="Headline">
+      <div class="field-row"><label class="sub-label" for="subtitle">Subhead</label><input class="text-input sub-input" id="subtitle" maxlength="48" value="VICE CITY · AFTER DARK"></div>
+      <div class="control-row">
+        <label>POST SIZE<select id="size"><option value="1080x1350">Portrait · 4:5</option><option value="1920x1080" selected>Landscape · 16:9</option><option value="1080x1080">Square · 1:1</option></select></label>
+        <label>COLOR STORY<select id="tone"><option value="sunset">Sunset Boulevard</option><option value="neon">Neon Nights</option></select></label>
+      </div>
+      <div class="slider-row"><label for="intensity">COLOR WASH</label><input id="intensity" type="range" min="0" max="100" value="54"><output id="intensityValue">54%</output></div>
+      <div class="hint"><span>✦</span> Tip: select a panel in your preview, then drag to reframe.</div>
+    </section>
+    <section class="preview-area" aria-label="Live cover preview">
+      <div class="preview-top"><div><span class="live-dot"></span> LIVE PREVIEW <small>· UPDATES IN REAL TIME</small></div><div class="canvas-size" id="sizeLabel">1920 × 1080 <span>▣</span></div></div>
+      <div class="canvas-wrap" id="canvasWrap"><canvas id="cover" width="1920" height="1080" aria-label="Cover art preview"></canvas><div class="canvas-corners"><i></i><i></i><i></i><i></i></div><div class="preview-tag">VICEFRAME ORIGINAL <span>✦</span></div></div>
+      <div class="preview-bottom"><div><span class="keyboard-icon">↖</span> DRAG A PANEL TO REFRAME <b>·</b> CLICK TO SELECT</div><div class="page-indicator"><span></span><span></span><span></span></div></div>
+      <div class="selected-tools"><span class="select-chip"><i></i> <b id="activePanel">PANEL 01</b> SELECTED</span><label>FRAME ZOOM <input id="zoom" type="range" min="100" max="220" value="116"></label><button id="toneToggle" class="toggle on" aria-pressed="true"><span></span> PANEL TONE</button><button id="addPhoto" class="add-photo">＋ ADD PHOTOS</button></div>
+      <div class="footer-note"><span>✦</span> DESIGNED FOR THE AFTER HOURS <span class="footer-line"></span> <span>1080P READY</span></div>
+    </section>
+  </main>
+  <div id="toast" role="status" aria-live="polite"></div>
 </body>
 </html>
