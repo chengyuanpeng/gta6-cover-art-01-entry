@@ -1,0 +1,3 @@
+Anton — The Anton Project Authors.
+Licensed under the SIL Open Font License 1.1.
+Source: google/fonts (https://github.com/google/fonts).
