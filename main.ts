@@ -1,40 +1,97 @@
-// A working gta6-cover-art-01 entry (Node 22, standard library only): the app is this directory's app/ folder, plain
-// static files a desktop browser loads offline (app/index.html and its ES modules, no library and no network
-// request), and the program hands it in. It copies app/ and screenshots/ from beside this file to /output and writes
-// /output/dossier.json, the summary the judge reads, with the vendored make.fun library. Only the plumbing, not the
-// cover art the bounty asks for: Cover Snap, a plain one-photo square cover with a sunset tint and a bold caption,
-// exported as a 1080 x 1080 PNG. Its two sample photos (app/samples/) were made for make.fun with an image model and
-// are free to use. Build your own GTA-style cover maker in its place, put your 3 or 4 PNG or JPEG screenshots in
-// screenshots/ (the first by name is the cover) and run it.
-//
-// Serve it locally with `node serve.ts`, then open http://localhost:8080.
-// Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
-//   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
-
-import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { closeSync, cpSync, lstatSync, mkdirSync, openSync, readSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-app.ts';
 
-const here = fileURLToPath(new URL('.', import.meta.url));
-const out = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
+const LIMITS = {
+  appEntries: 993,
+  appBytes: 48 * 1024 * 1024,
+  appPathBytes: 1000,
+  screenshotCount: 4,
+  screenshotBytes: 256 * 1024,
+};
 
-mkdirSync(out, { recursive: true });
-cpSync(join(here, 'app'), join(out, 'app'), { recursive: true });
-mkdirSync(join(out, 'screenshots'), { recursive: true });
-if (existsSync(join(here, 'screenshots'))) cpSync(join(here, 'screenshots'), join(out, 'screenshots'), { recursive: true });
+function requireDirectory(path: string, label: string): void {
+  const info = lstatSync(path);
+  if (!info.isDirectory() || info.isSymbolicLink()) throw new Error(`${label} must be a real directory: ${path}`);
+}
 
-// The scorer's own caps (reference/gate.json): only text_max_bytes shapes the bytes; the others refuse an entry the
-// scorer would refuse (more than 4 screenshots or one over 256 KiB; more than 993 files in app/ or 48 MiB of app
-// files, in all, or a path under app/ over 1000 bytes: app/ counts beside /output's own 1000-entry cap, its
-// screenshots/ and dossier.json).
-writeFileSync(
-  join(out, 'dossier.json'),
-  buildDossier(out, {
-    text_max_bytes: 163840,
-    screenshots: { max: 4, max_bytes: 262144 },
-    app_max_files: 993,
-    app_max_bytes: 50331648,
-    app_path_max_bytes: 1000,
-  }),
-);
+function inspectApp(root: string): void {
+  let entries = 0;
+  let bytes = 0;
+
+  function visit(directory: string, relative: string): void {
+    for (const name of readdirSync(directory).sort()) {
+      const child = join(directory, name);
+      const appPath = relative ? `${relative}/${name}` : name;
+      const info = lstatSync(child);
+      entries++;
+      if (Buffer.byteLength(appPath, 'utf8') > LIMITS.appPathBytes) {
+        throw new Error(`app path exceeds ${LIMITS.appPathBytes} UTF-8 bytes: ${appPath}`);
+      }
+      if (info.isSymbolicLink()) throw new Error(`app contains a symbolic link: ${appPath}`);
+      if (info.isDirectory()) visit(child, appPath);
+      else if (info.isFile()) {
+        bytes += info.size;
+        if (bytes > LIMITS.appBytes) throw new Error(`app exceeds ${LIMITS.appBytes} bytes`);
+      } else throw new Error(`app contains a special file: ${appPath}`);
+      if (entries > LIMITS.appEntries) throw new Error(`app exceeds ${LIMITS.appEntries} files and directories`);
+    }
+  }
+
+  requireDirectory(root, 'app/');
+  visit(root, '');
+  const page = lstatSync(join(root, 'index.html'));
+  if (!page.isFile() || page.size > 1024 * 1024) throw new Error('app/index.html must be a regular file no larger than 1 MiB');
+}
+
+function inspectScreenshots(root: string): string[] {
+  requireDirectory(root, 'screenshots/');
+  const names = readdirSync(root).sort();
+  if (names.length < 3 || names.length > LIMITS.screenshotCount) {
+    throw new Error(`screenshots/ must contain 3 or 4 images; found ${names.length}`);
+  }
+
+  for (const name of names) {
+    if (!/^[A-Za-z0-9._-]{1,128}$/.test(name) || name.startsWith('.') || name.startsWith('-')) {
+      throw new Error(`invalid screenshot filename: ${name}`);
+    }
+    const path = join(root, name);
+    const info = lstatSync(path);
+    if (!info.isFile() || info.isSymbolicLink()) throw new Error(`screenshot must be a regular file: ${name}`);
+    if (info.size > LIMITS.screenshotBytes) throw new Error(`${name} exceeds ${LIMITS.screenshotBytes} bytes`);
+    const head = Buffer.alloc(3);
+    const fd = openSync(path, 'r');
+    try { readSync(fd, head, 0, 3, 0); } finally { closeSync(fd); }
+    const png = head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e;
+    const jpeg = head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
+    if (!png && !jpeg) throw new Error(`${name} is not a PNG or JPEG image`);
+  }
+  return names;
+}
+
+const project = dirname(fileURLToPath(import.meta.url));
+const sourceApp = join(project, 'app');
+const sourceShots = join(project, 'screenshots');
+const destination = resolve(process.env.MAKEFUN_OUTPUT_DIR || '/output');
+
+inspectApp(sourceApp);
+inspectScreenshots(sourceShots);
+
+mkdirSync(dirname(destination), { recursive: true });
+mkdirSync(destination, { recursive: true });
+for (const item of ['app', 'screenshots', 'dossier.json']) {
+  rmSync(join(destination, item), { recursive: true, force: true });
+}
+cpSync(sourceApp, join(destination, 'app'), { recursive: true, errorOnExist: true });
+cpSync(sourceShots, join(destination, 'screenshots'), { recursive: true, errorOnExist: true });
+
+const dossier = buildDossier(destination, {
+  text_max_bytes: 163840,
+  screenshots: { max: LIMITS.screenshotCount, max_bytes: LIMITS.screenshotBytes },
+  app_max_files: LIMITS.appEntries,
+  app_max_bytes: LIMITS.appBytes,
+  app_path_max_bytes: LIMITS.appPathBytes,
+});
+writeFileSync(join(destination, 'dossier.json'), dossier);
+console.log(`ViceFrame package written to ${destination}`);
