@@ -1,4 +1,4 @@
-// Browser entrypoint: static ES modules keep the studio build-free and fully offline.
+// ViceFrame browser entrypoint. All modules and assets are local static files.
 import { bootStudio } from './app.js';
 
-bootStudio();
+bootStudio(document);
