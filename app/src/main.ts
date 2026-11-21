@@ -1,4 +1,8 @@
-// ViceFrame browser entrypoint. All modules and assets are local static files.
+// ViceFrame browser entrypoint. This file boots the static, offline-first studio.
 import { bootStudio } from './app.js';
 
-bootStudio(document);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => bootStudio(document), { once: true });
+} else {
+  bootStudio(document);
+}

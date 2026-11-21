@@ -1,90 +1,97 @@
 import { createReadStream } from 'node:fs';
 import { realpath, stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
-import { extname, isAbsolute, relative, resolve, sep } from 'node:path';
+import { extname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const applicationRoot = await realpath(fileURLToPath(new URL('./app/', import.meta.url)));
-const contentTypes = {
-  '.html': 'text/html; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.mjs': 'text/javascript; charset=utf-8',
-  '.ts': 'text/javascript; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.txt': 'text/plain; charset=utf-8',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.webp': 'image/webp',
-  '.gif': 'image/gif',
-  '.ico': 'image/x-icon',
-  '.woff': 'font/woff',
-  '.woff2': 'font/woff2',
-  '.ttf': 'font/ttf',
-  '.otf': 'font/otf',
-  '.wasm': 'application/wasm',
-  '.mp3': 'audio/mpeg',
-  '.ogg': 'audio/ogg',
-  '.wav': 'audio/wav',
-};
+const appDirectory = await realpath(fileURLToPath(new URL('./app/', import.meta.url)));
+const mimeByExtension = new Map([
+  ['.html', 'text/html; charset=utf-8'],
+  ['.css', 'text/css; charset=utf-8'],
+  ['.js', 'text/javascript; charset=utf-8'],
+  ['.mjs', 'text/javascript; charset=utf-8'],
+  ['.json', 'application/json; charset=utf-8'],
+  ['.txt', 'text/plain; charset=utf-8'],
+  ['.svg', 'image/svg+xml'],
+  ['.png', 'image/png'],
+  ['.jpg', 'image/jpeg'],
+  ['.jpeg', 'image/jpeg'],
+  ['.webp', 'image/webp'],
+  ['.gif', 'image/gif'],
+  ['.ico', 'image/x-icon'],
+  ['.woff', 'font/woff'],
+  ['.woff2', 'font/woff2'],
+  ['.ttf', 'font/ttf'],
+  ['.otf', 'font/otf'],
+  ['.wasm', 'application/wasm'],
+  ['.mp3', 'audio/mpeg'],
+  ['.ogg', 'audio/ogg'],
+  ['.wav', 'audio/wav'],
+]);
 
-function reply(response, status, message) {
+function sendText(response, status, text) {
   response.writeHead(status, { 'content-type': 'text/plain; charset=utf-8' });
-  response.end(message);
+  response.end(text);
 }
 
-function appPathFrom(request) {
+function pathInsideApp(requestUrl) {
   let pathname;
   try {
-    pathname = decodeURIComponent(new URL(request.url ?? '/', 'http://localhost').pathname);
+    pathname = decodeURIComponent(new URL(requestUrl || '/', 'http://localhost').pathname);
   } catch {
-    return null;
+    return { problem: 'bad-url' };
   }
 
-  if (pathname.includes('\\') || pathname.split('/').includes('..')) return '';
-  if (pathname.endsWith('/')) pathname += 'index.html';
-  const candidate = resolve(applicationRoot, `.${pathname}`);
-  const pathFromRoot = relative(applicationRoot, candidate);
-  if (isAbsolute(pathFromRoot) || pathFromRoot === '..' || pathFromRoot.startsWith(`..${sep}`)) return '';
-  return candidate;
+  // Reject traversal before normalizing it away, including encoded separators.
+  if (pathname.includes('\\') || pathname.split('/').some((part) => part === '..')) {
+    return { problem: 'outside' };
+  }
+  const filePart = pathname.endsWith('/') ? `${pathname}index.html` : pathname;
+  const target = resolve(appDirectory, `.${filePart}`);
+  const fromRoot = relative(appDirectory, target);
+  if (fromRoot === '..' || fromRoot.startsWith(`..${sep}`) || fromRoot.startsWith(sep)) {
+    return { problem: 'outside' };
+  }
+  return { target };
 }
 
-async function serve(request, response) {
+function isWithinApp(realFile) {
+  const fromRoot = relative(appDirectory, realFile);
+  return fromRoot !== '..' && !fromRoot.startsWith(`..${sep}`) && !fromRoot.startsWith(sep);
+}
+
+async function handleRequest(request, response) {
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     response.setHeader('allow', 'GET, HEAD');
-    reply(response, 405, 'method not allowed');
+    sendText(response, 405, 'method not allowed');
     return;
   }
 
-  const candidate = appPathFrom(request);
-  if (candidate === null) {
-    reply(response, 400, 'malformed URL path');
+  const resolvedPath = pathInsideApp(request.url);
+  if (resolvedPath.problem === 'bad-url') {
+    sendText(response, 400, 'malformed URL path');
     return;
   }
-  if (candidate === '') {
-    reply(response, 403, 'path is outside app/');
+  if (resolvedPath.problem === 'outside') {
+    sendText(response, 403, 'path is outside app/');
     return;
   }
 
   try {
-    const actualPath = await realpath(candidate);
-    const pathFromRoot = relative(applicationRoot, actualPath);
-    if (isAbsolute(pathFromRoot) || pathFromRoot === '..' || pathFromRoot.startsWith(`..${sep}`)) {
-      reply(response, 403, 'path is outside app/');
+    const realFile = await realpath(resolvedPath.target);
+    if (!isWithinApp(realFile)) {
+      sendText(response, 403, 'path is outside app/');
       return;
     }
-
-    const details = await stat(actualPath);
-    if (!details.isFile()) {
-      reply(response, 404, 'file not found');
+    const info = await stat(realFile);
+    if (!info.isFile()) {
+      sendText(response, 404, 'file not found');
       return;
     }
 
     response.writeHead(200, {
-      'content-type': contentTypes[extname(actualPath).toLowerCase()] ?? 'application/octet-stream',
-      'content-length': details.size,
+      'content-type': mimeByExtension.get(extname(realFile).toLowerCase()) || 'application/octet-stream',
+      'content-length': info.size,
       'cache-control': 'no-store',
       'x-content-type-options': 'nosniff',
     });
@@ -93,31 +100,32 @@ async function serve(request, response) {
       return;
     }
 
-    const stream = createReadStream(actualPath);
-    stream.on('error', () => response.destroy());
-    stream.pipe(response);
+    const fileStream = createReadStream(realFile);
+    fileStream.on('error', () => response.destroy());
+    fileStream.pipe(response);
   } catch {
-    reply(response, 404, 'file not found');
+    sendText(response, 404, 'file not found');
   }
 }
 
-function portFrom(arguments_) {
-  const option = arguments_.indexOf('--port');
-  if (option < 0) return 8080;
-  const value = arguments_[option + 1];
-  if (!value || !/^\d+$/.test(value)) throw new Error('--port requires a number from 1 to 65535');
-  const port = Number(value);
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+function readPort(args) {
+  const flagIndex = args.indexOf('--port');
+  if (flagIndex === -1) return 8080;
+  const rawPort = args[flagIndex + 1];
+  if (!rawPort || !/^\d+$/.test(rawPort)) {
+    throw new Error('--port requires a number from 1 to 65535');
+  }
+  const port = Number(rawPort);
+  if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
     throw new Error('--port requires a number from 1 to 65535');
   }
   return port;
 }
 
-const port = portFrom(process.argv.slice(2));
+const port = readPort(process.argv.slice(2));
 const server = createServer((request, response) => {
-  void serve(request, response);
+  void handleRequest(request, response);
 });
-
 server.listen(port, '127.0.0.1', () => {
-  console.log(`ViceFrame is serving app/ at http://localhost:${port}`);
+  console.log(`ViceFrame dev server: http://localhost:${port} (app/)`);
 });
