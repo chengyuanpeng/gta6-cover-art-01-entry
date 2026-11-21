@@ -29,6 +29,7 @@ export function bootStudio() {
   const ctx = canvas.getContext('2d');
   const byId = (id) => document.getElementById(id);
   const photos = [];
+  const assignments = [];
   let layout = 'collage';
   let active = 0;
   let intensity = .54;
@@ -122,7 +123,7 @@ export function bootStudio() {
     ctx.clearRect(0, 0, w, h);
     ctx.fillStyle = '#161324';
     ctx.fillRect(0, 0, w, h);
-    panels.forEach((polygon, i) => fitPhoto(photos.length ? photos[i % photos.length] : null, polygon, i, w, h));
+    panels.forEach((polygon, i) => fitPhoto(photos.length ? photos[assignments[i] ?? (i % photos.length)] : null, polygon, i, w, h));
 
     const pal = palettes[byId('tone').value];
     const vignette = ctx.createRadialGradient(w * .5, h * .44, h * .05, w * .5, h * .48, w * .78);
@@ -141,7 +142,7 @@ export function bootStudio() {
     const pad = w * .057;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = byId('titleColor').value;
     ctx.shadowColor = 'rgba(15,7,24,.72)';
     ctx.shadowBlur = w * .013;
     ctx.shadowOffsetX = w * .002;
@@ -154,7 +155,16 @@ export function bootStudio() {
       ctx.font = `${size}px Anton, Impact, sans-serif`;
     }
     const lineGap = size * .86;
-    const baseline = h - h * .12 - (lines.length - 1) * lineGap;
+    const topLockup = byId('titlePosition').value === 'top';
+    const baseline = topLockup ? h * .19 : h - h * .12 - (lines.length - 1) * lineGap;
+    if (topLockup) {
+      const band = ctx.createLinearGradient(0, 0, 0, h * .42);
+      band.addColorStop(0, 'rgba(12,8,23,.72)');
+      band.addColorStop(1, 'rgba(12,8,23,0)');
+      ctx.fillStyle = band;
+      ctx.fillRect(0, 0, w, h * .42);
+      ctx.fillStyle = byId('titleColor').value;
+    }
     ctx.lineWidth = Math.max(3, size * .055);
     ctx.strokeStyle = 'rgba(27,12,36,.85)';
     lines.forEach((line, i) => {
@@ -169,12 +179,12 @@ export function bootStudio() {
     ctx.font = `700 ${Math.max(12, h * .021)}px ui-sans-serif, sans-serif`;
     ctx.letterSpacing = `${Math.max(1, w * .0016)}px`;
     ctx.fillStyle = '#ffbddc';
-    ctx.fillText((byId('subtitle').value || '').toUpperCase(), pad + 2, h - h * .052);
+    ctx.fillText((byId('subtitle').value || '').toUpperCase(), pad + 2, topLockup ? h * .25 : h - h * .052);
     ctx.letterSpacing = '0px';
     ctx.textAlign = 'right';
     ctx.fillStyle = 'rgba(255,255,255,.78)';
     ctx.font = `700 ${Math.max(9, h * .013)}px ui-sans-serif, sans-serif`;
-    ctx.fillText('VICEFRAME  /  ORIGINAL CITY STORIES', w - pad, h - h * .052);
+    ctx.fillText('VICEFRAME  /  ORIGINAL CITY STORIES', w - pad, topLockup ? h * .25 : h - h * .052);
 
     // A subtle print grain gives the cover a tactile poster finish.
     ctx.save();
@@ -207,11 +217,26 @@ export function bootStudio() {
 
   function addPhoto(file, image) {
     photos.push({ file, image, offsetX: 0, offsetY: 0 });
-    const thumb = document.createElement('img');
-    thumb.className = 'photo-thumb';
-    thumb.src = image.src;
-    thumb.alt = file?.name || 'Sample photo';
+    const index = photos.length - 1;
+    const thumb = document.createElement('button');
+    thumb.type = 'button';
+    thumb.className = 'photo-pick';
+    thumb.title = `Use ${file?.name || 'sample photo'} in the selected panel`;
+    thumb.setAttribute('aria-label', thumb.title);
+    const preview = document.createElement('img');
+    preview.className = 'photo-thumb';
+    preview.src = image.src;
+    preview.alt = file?.name || 'Sample photo';
+    thumb.append(preview);
+    thumb.addEventListener('click', () => {
+      assignments[active] = index;
+      document.querySelectorAll('.photo-pick').forEach((item) => item.classList.toggle('assigned', Number(item.dataset.photo) === assignments[active]));
+      draw();
+      announce(`Photo assigned to panel ${String(active + 1).padStart(2, '0')}`);
+    });
+    thumb.dataset.photo = String(index);
     byId('photoTray').append(thumb);
+    if (photos.length === 1) assignments.fill(0);
     byId('photoCount').textContent = `${photos.length} PHOTO${photos.length === 1 ? '' : 'S'}`;
     draw();
   }
@@ -236,6 +261,8 @@ export function bootStudio() {
   }));
   byId('caption').addEventListener('input', draw);
   byId('subtitle').addEventListener('input', draw);
+  byId('titleColor').addEventListener('change', draw);
+  byId('titlePosition').addEventListener('change', draw);
   byId('tone').addEventListener('change', draw);
   byId('size').addEventListener('change', updateSize);
   byId('intensity').addEventListener('input', (event) => {
@@ -266,7 +293,8 @@ export function bootStudio() {
     if (hit >= 0) {
       active = hit;
       byId('activePanel').textContent = `PANEL ${String(hit + 1).padStart(2, '0')}`;
-      dragging = { point, photo: photos[hit % Math.max(photos.length, 1)] };
+      document.querySelectorAll('.photo-pick').forEach((item) => item.classList.toggle('assigned', Number(item.dataset.photo) === assignments[active]));
+      dragging = { point, photo: photos[assignments[hit] ?? (hit % Math.max(photos.length, 1))] };
       canvas.setPointerCapture(event.pointerId);
       draw();
     }
@@ -302,6 +330,7 @@ export function bootStudio() {
     image.onerror = resolve;
     image.src = `./samples/${name}`;
   }))).then(() => {
+    layouts[layout].forEach((_, index) => { assignments[index] = index % Math.max(photos.length, 1); });
     const shot = new URLSearchParams(location.search).get('shot');
     if (shot === 'cover' || shot === 'editor') {
       byId('caption').value = new URLSearchParams(location.search).get('caption') || (shot === 'cover' ? 'SUNSET HEIST' : 'BOULEVARD QUEEN');

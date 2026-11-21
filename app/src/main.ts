@@ -1,4 +1,4 @@
-// Browser-compatible module entrypoint: boot the static studio without a build step.
+// ViceFrame's static browser entrypoint. Keep this file plain JavaScript-compatible TypeScript.
 import { bootStudio } from './app.js';
 
 bootStudio();
