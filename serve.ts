@@ -1,15 +1,19 @@
+// ViceFrame local dev server: serves app/ over plain HTTP so the studio
+// can be tried in a desktop browser. No build step, no network fetching.
 import { createReadStream } from 'node:fs';
 import { realpath, stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const appDirectory = await realpath(fileURLToPath(new URL('./app/', import.meta.url)));
-const mimeByExtension = new Map([
+const appRoot = await realpath(fileURLToPath(new URL('./app/', import.meta.url)));
+
+const mimeTypes = new Map([
   ['.html', 'text/html; charset=utf-8'],
   ['.css', 'text/css; charset=utf-8'],
   ['.js', 'text/javascript; charset=utf-8'],
   ['.mjs', 'text/javascript; charset=utf-8'],
+  ['.ts', 'text/javascript; charset=utf-8'],
   ['.json', 'application/json; charset=utf-8'],
   ['.txt', 'text/plain; charset=utf-8'],
   ['.svg', 'image/svg+xml'],
@@ -29,95 +33,77 @@ const mimeByExtension = new Map([
   ['.wav', 'audio/wav'],
 ]);
 
-function sendText(response, status, text) {
+function sendPlain(response, status, text) {
   response.writeHead(status, { 'content-type': 'text/plain; charset=utf-8' });
   response.end(text);
 }
 
-function pathInsideApp(requestUrl) {
+function resolveRequestPath(requestUrl) {
   let pathname;
   try {
     pathname = decodeURIComponent(new URL(requestUrl || '/', 'http://localhost').pathname);
   } catch {
     return { problem: 'bad-url' };
   }
-
-  // Reject traversal before normalizing it away, including encoded separators.
+  // Refuse traversal outright, encoded separators included.
   if (pathname.includes('\\') || pathname.split('/').some((part) => part === '..')) {
     return { problem: 'outside' };
   }
   const filePart = pathname.endsWith('/') ? `${pathname}index.html` : pathname;
-  const target = resolve(appDirectory, `.${filePart}`);
-  const fromRoot = relative(appDirectory, target);
-  if (fromRoot === '..' || fromRoot.startsWith(`..${sep}`) || fromRoot.startsWith(sep)) {
+  const target = resolve(appRoot, `.${filePart}`);
+  const rel = relative(appRoot, target);
+  if (rel === '..' || rel.startsWith(`..${sep}`) || rel.startsWith(sep)) {
     return { problem: 'outside' };
   }
   return { target };
 }
 
-function isWithinApp(realFile) {
-  const fromRoot = relative(appDirectory, realFile);
-  return fromRoot !== '..' && !fromRoot.startsWith(`..${sep}`) && !fromRoot.startsWith(sep);
+function insideApp(realFile) {
+  const rel = relative(appRoot, realFile);
+  return rel !== '..' && !rel.startsWith(`..${sep}`) && !rel.startsWith(sep);
 }
 
 async function handleRequest(request, response) {
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     response.setHeader('allow', 'GET, HEAD');
-    sendText(response, 405, 'method not allowed');
+    sendPlain(response, 405, 'method not allowed');
     return;
   }
 
-  const resolvedPath = pathInsideApp(request.url);
-  if (resolvedPath.problem === 'bad-url') {
-    sendText(response, 400, 'malformed URL path');
-    return;
-  }
-  if (resolvedPath.problem === 'outside') {
-    sendText(response, 403, 'path is outside app/');
-    return;
-  }
+  const resolved = resolveRequestPath(request.url);
+  if (resolved.problem === 'bad-url') return sendPlain(response, 400, 'malformed URL path');
+  if (resolved.problem === 'outside') return sendPlain(response, 403, 'path is outside app/');
 
   try {
-    const realFile = await realpath(resolvedPath.target);
-    if (!isWithinApp(realFile)) {
-      sendText(response, 403, 'path is outside app/');
-      return;
-    }
+    const realFile = await realpath(resolved.target);
+    if (!insideApp(realFile)) return sendPlain(response, 403, 'path is outside app/');
     const info = await stat(realFile);
-    if (!info.isFile()) {
-      sendText(response, 404, 'file not found');
-      return;
-    }
+    if (!info.isFile()) return sendPlain(response, 404, 'file not found');
 
     response.writeHead(200, {
-      'content-type': mimeByExtension.get(extname(realFile).toLowerCase()) || 'application/octet-stream',
+      'content-type': mimeTypes.get(extname(realFile).toLowerCase()) || 'application/octet-stream',
       'content-length': info.size,
       'cache-control': 'no-store',
       'x-content-type-options': 'nosniff',
     });
-    if (request.method === 'HEAD') {
-      response.end();
-      return;
-    }
+    if (request.method === 'HEAD') return response.end();
 
-    const fileStream = createReadStream(realFile);
-    fileStream.on('error', () => response.destroy());
-    fileStream.pipe(response);
+    const stream = createReadStream(realFile);
+    stream.on('error', () => response.destroy());
+    stream.pipe(response);
   } catch {
-    sendText(response, 404, 'file not found');
+    sendPlain(response, 404, 'file not found');
   }
 }
 
 function readPort(args) {
-  const flagIndex = args.indexOf('--port');
-  if (flagIndex === -1) return 8080;
-  const rawPort = args[flagIndex + 1];
-  if (!rawPort || !/^\d+$/.test(rawPort)) {
-    throw new Error('--port requires a number from 1 to 65535');
-  }
-  const port = Number(rawPort);
+  const at = args.indexOf('--port');
+  if (at === -1) return 8080;
+  const raw = args[at + 1];
+  if (!raw || !/^\d+$/.test(raw)) throw new Error('--port needs a number from 1 to 65535');
+  const port = Number(raw);
   if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
-    throw new Error('--port requires a number from 1 to 65535');
+    throw new Error('--port needs a number from 1 to 65535');
   }
   return port;
 }

@@ -1,8 +1,12 @@
-// ViceFrame browser entrypoint. This file boots the static, offline-first studio.
+// ViceFrame browser entrypoint: wire the studio up once the page is ready.
 import { bootStudio } from './app.js';
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => bootStudio(document), { once: true });
-} else {
+function startStudio() {
   bootStudio(document);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', startStudio, { once: true });
+} else {
+  startStudio();
 }
