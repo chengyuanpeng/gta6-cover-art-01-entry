@@ -4,29 +4,34 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#10101b">
+  <meta name="description" content="Make an original, neon-soaked multi-panel cover from your own photos.">
   <title>ViceFrame — Cover Art Studio</title>
   <link rel="stylesheet" href="./src/style.css">
   <script type="module" src="./src/main.ts"></script>
 </head>
 <body>
-  <header class="topbar"><a class="brand" href="#"><span class="brand-mark">V</span>VICE<span>FRAME</span></a><div class="top-note"><i></i> YOUR STORY. YOUR CITY.</div><button id="exportTop" class="export top-export">Export PNG <b>↗</b></button></header>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="ViceFrame home"><span class="brand-mark">V</span>VICE<span>FRAME</span></a>
+    <div class="top-note"><i></i> YOUR STORY. YOUR CITY.</div>
+    <button id="exportTop" class="export" type="button">Export PNG <b>↗</b></button>
+  </header>
   <main class="workspace">
-    <section class="editor">
+    <section class="editor" aria-label="Cover controls">
       <div class="eyebrow">COVER ART STUDIO <span>•</span> 01 / CREATE</div>
       <h1>Make it<br><em>iconic.</em></h1>
       <p class="intro">Build your own late-night legend. Pick a frame, drop in your photos, set the mood.</p>
       <div class="step-head"><span>01</span><b>Choose your layout</b><small>3 TEMPLATES</small></div>
       <div class="templates" role="group" aria-label="Layout template">
-        <button class="template selected" data-layout="collage"><span class="mini mini-collage"><i></i><i></i><i></i><i></i></span><b>Collage</b><small>OFFBEAT / ICONIC</small></button>
-        <button class="template" data-layout="grid"><span class="mini mini-grid"><i></i><i></i><i></i><i></i></span><b>Grid</b><small>CLEAN / CLASSIC</small></button>
-        <button class="template" data-layout="hero"><span class="mini mini-hero"><i></i><i></i><i></i></span><b>Hero</b><small>ONE MAIN EVENT</small></button>
+        <button class="template selected" data-layout="collage" type="button"><span class="mini mini-collage"><i></i><i></i><i></i><i></i></span><b>Collage</b><small>OFFBEAT / ICONIC</small></button>
+        <button class="template" data-layout="grid" type="button"><span class="mini mini-grid"><i></i><i></i><i></i><i></i></span><b>Grid</b><small>CLEAN / CLASSIC</small></button>
+        <button class="template" data-layout="hero" type="button"><span class="mini mini-hero"><i></i><i></i><i></i></span><b>Hero</b><small>ONE MAIN EVENT</small></button>
       </div>
       <div class="step-head"><span>02</span><b>Build your scene</b><small id="photoCount">0 PHOTOS</small></div>
       <label class="upload" for="photoInput"><span class="upload-icon">＋</span><span><b>Add your photos</b><small>Choose one or more images from your device</small></span><span class="upload-arrow">↗</span></label>
       <input id="photoInput" type="file" accept="image/*" multiple hidden>
       <div class="photo-tray" id="photoTray" aria-label="Your photos"></div>
       <label class="field-label" for="caption">03 <b>Your headline</b></label>
-      <input class="text-input" id="caption" maxlength="30" value="SUNSET HEIST" aria-label="Headline">
+      <input class="text-input" id="caption" maxlength="38" value="SUNSET HEIST" aria-label="Headline">
       <div class="field-row"><label class="sub-label" for="subtitle">Subhead</label><input class="text-input sub-input" id="subtitle" maxlength="48" value="VICE CITY · AFTER DARK"></div>
       <div class="control-row title-controls">
         <label>LETTER COLOR<select id="titleColor"><option value="#fff8ed">Warm white</option><option value="#ffe06b">Sunshine</option><option value="#ff73b5">Hot pink</option></select></label>
@@ -41,9 +46,9 @@
     </section>
     <section class="preview-area" aria-label="Live cover preview">
       <div class="preview-top"><div><span class="live-dot"></span> LIVE PREVIEW <small>· UPDATES IN REAL TIME</small></div><div class="canvas-size" id="sizeLabel">1920 × 1080 <span>▣</span></div></div>
-      <div class="canvas-wrap" id="canvasWrap"><canvas id="cover" width="1920" height="1080" aria-label="Cover art preview"></canvas><div class="canvas-corners"><i></i><i></i><i></i><i></i></div><div class="preview-tag">VICEFRAME ORIGINAL <span>✦</span></div></div>
-      <div class="preview-bottom"><div><span class="keyboard-icon">↖</span> DRAG A PANEL TO REFRAME <b>·</b> CLICK TO SELECT</div><div class="page-indicator"><span></span><span></span><span></span></div></div>
-      <div class="selected-tools"><span class="select-chip"><i></i> <b id="activePanel">PANEL 01</b> SELECTED</span><label>FRAME ZOOM <input id="zoom" type="range" min="100" max="220" value="116"></label><button id="toneToggle" class="toggle on" aria-pressed="true"><span></span> PANEL TONE</button><button id="addPhoto" class="add-photo">＋ ADD PHOTOS</button></div>
+      <div class="canvas-wrap" id="canvasWrap"><canvas id="cover" width="1920" height="1080" aria-label="Cover art preview"></canvas><div class="canvas-corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div><div class="preview-tag">VICEFRAME ORIGINAL <span>✦</span></div></div>
+      <div class="preview-bottom"><div><span class="keyboard-icon">↖</span> DRAG A PANEL TO REFRAME <b>·</b> CLICK TO SELECT</div><div class="page-indicator" aria-hidden="true"><span></span><span></span><span></span></div></div>
+      <div class="selected-tools"><span class="select-chip"><i></i> <b id="activePanel">PANEL 01</b> SELECTED</span><label>FRAME ZOOM <input id="zoom" type="range" min="100" max="220" value="116"></label><button id="toneToggle" class="toggle on" type="button" aria-pressed="true"><span></span> PANEL TONE</button><button id="addPhoto" class="add-photo" type="button">＋ ADD PHOTOS</button></div>
       <div class="footer-note"><span>✦</span> DESIGNED FOR THE AFTER HOURS <span class="footer-line"></span> <span>1080P READY</span></div>
     </section>
   </main>
