@@ -1,5 +1,5 @@
-// ViceFrame local dev server: serves app/ over plain HTTP so the studio
-// can be tried in a desktop browser. No build step, no network fetching.
+// ViceFrame local dev server: serves app/ over plain HTTP so the studio can
+// be tried in a desktop browser. No build step, nothing fetched from the net.
 import { createReadStream } from 'node:fs';
 import { realpath, stat } from 'node:fs/promises';
 import { createServer } from 'node:http';

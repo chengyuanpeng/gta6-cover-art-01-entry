@@ -1,13 +1,13 @@
 // ViceFrame hand-in program: copy app/ and screenshots/ into the output
 // directory and write dossier.json with the kit's buildDossier. Running it
-// twice over the same repository writes byte-identical output.
+// twice over the same repository writes byte-identical output every time.
 import { cpSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-app.ts';
 
 // Gate limits for this competition (see the kit's RULES.txt).
-const LIMITS = {
+const CAPS = {
   appEntries: 993,
   appBytes: 48 * 1024 * 1024,
   pathBytes: 1000,
@@ -19,15 +19,15 @@ const LIMITS = {
 const repoRoot = dirname(fileURLToPath(import.meta.url));
 const outDir = resolve(process.env.MAKEFUN_OUTPUT_DIR || '/output');
 
-function mustBeDirectory(path, label) {
+function requirePlainDirectory(path, label) {
   const info = lstatSync(path);
   if (!info.isDirectory() || info.isSymbolicLink()) {
     throw new Error(`${label} is not a plain directory: ${path}`);
   }
 }
 
-function checkAppTree(root) {
-  mustBeDirectory(root, 'app/');
+function validateAppTree(root) {
+  requirePlainDirectory(root, 'app/');
   let entries = 0;
   let bytes = 0;
   let indexBytes;
@@ -38,7 +38,7 @@ function checkAppTree(root) {
       const key = prefix ? `${prefix}/${name}` : name;
       const info = lstatSync(path);
       entries += 1;
-      if (Buffer.byteLength(key, 'utf8') > LIMITS.pathBytes) {
+      if (Buffer.byteLength(key, 'utf8') > CAPS.pathBytes) {
         throw new Error(`App path is too long: ${key}`);
       }
       if (info.isSymbolicLink()) throw new Error(`App holds a symlink: ${key}`);
@@ -47,33 +47,38 @@ function checkAppTree(root) {
         bytes += info.size;
         if (key === 'index.html') indexBytes = info.size;
       } else throw new Error(`App holds a non-file entry: ${key}`);
-      if (entries > LIMITS.appEntries) throw new Error(`App holds more than ${LIMITS.appEntries} entries`);
-      if (bytes > LIMITS.appBytes) throw new Error(`App is larger than ${LIMITS.appBytes} bytes`);
+      if (entries > CAPS.appEntries) throw new Error(`App holds more than ${CAPS.appEntries} entries`);
+      if (bytes > CAPS.appBytes) throw new Error(`App is larger than ${CAPS.appBytes} bytes`);
     }
   };
 
   walk(root, '');
   if (indexBytes === undefined) throw new Error('app/ needs an index.html file');
-  if (indexBytes > LIMITS.indexBytes) throw new Error('app/index.html is larger than 1 MiB');
+  if (indexBytes > CAPS.indexBytes) throw new Error('app/index.html is larger than 1 MiB');
 }
 
-function imageSize(buffer, name) {
+function readImageSize(buffer, name) {
   const pngMagic = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
   if (buffer.length >= 24 && buffer.subarray(0, 8).equals(pngMagic)) {
     return [buffer.readUInt32BE(16), buffer.readUInt32BE(20)];
   }
   if (buffer.length >= 4 && buffer[0] === 0xff && buffer[1] === 0xd8) {
-    // Walk JPEG markers until the frame header (SOF) gives the dimensions.
+    // Walk the JPEG markers until a frame header (SOF) gives the dimensions.
+    // Every read is bounds-checked first: a truncated or corrupt file must
+    // fail with the plain "neither PNG nor JPEG" error below, never with an
+    // uncaught out-of-range read from the marker walker.
     let at = 2;
     while (at + 3 < buffer.length) {
       if (buffer[at++] !== 0xff) continue;
-      while (buffer[at] === 0xff) at += 1;
+      while (at < buffer.length && buffer[at] === 0xff) at += 1;
+      if (at >= buffer.length) break;
       const marker = buffer[at++];
       if (marker === 0xd9 || marker === 0xda) break;
       if (at + 1 >= buffer.length) break;
       const size = buffer.readUInt16BE(at);
       if (size < 2 || at + size > buffer.length) break;
       if ([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf].includes(marker)) {
+        if (at + 7 > buffer.length) break;
         return [buffer.readUInt16BE(at + 5), buffer.readUInt16BE(at + 3)];
       }
       at += size;
@@ -82,10 +87,10 @@ function imageSize(buffer, name) {
   throw new Error(`${name} is neither a whole PNG nor a whole JPEG`);
 }
 
-function checkShots(root) {
-  mustBeDirectory(root, 'screenshots/');
+function validateScreenshots(root) {
+  requirePlainDirectory(root, 'screenshots/');
   const names = readdirSync(root).sort();
-  if (names.length < 3 || names.length > LIMITS.shotCount) {
+  if (names.length < 3 || names.length > CAPS.shotCount) {
     throw new Error(`screenshots/ must hold 3 or 4 images (found ${names.length})`);
   }
   for (const name of names) {
@@ -96,8 +101,8 @@ function checkShots(root) {
     const path = join(root, name);
     const info = lstatSync(path);
     if (info.isSymbolicLink() || !info.isFile()) throw new Error(`Screenshot is not a plain file: ${name}`);
-    if (info.size > LIMITS.shotBytes) throw new Error(`Screenshot is too large: ${name}`);
-    const [width, height] = imageSize(readFileSync(path), name);
+    if (info.size > CAPS.shotBytes) throw new Error(`Screenshot is too large: ${name}`);
+    const [width, height] = readImageSize(readFileSync(path), name);
     if (Math.max(width, height) > 1280 || Math.min(width, height) < 480) {
       throw new Error(`Screenshot size out of bounds: ${name} (${width}x${height})`);
     }
@@ -107,23 +112,24 @@ function checkShots(root) {
 
 const appSource = join(repoRoot, 'app');
 const shotsSource = join(repoRoot, 'screenshots');
-checkAppTree(appSource);
-const shotNames = checkShots(shotsSource);
+validateAppTree(appSource);
+const shotNames = validateScreenshots(shotsSource);
 
 mkdirSync(dirname(outDir), { recursive: true });
+// Wipe the whole output directory first, not just the paths this program
+// writes: a stale file from an earlier run would otherwise ship silently
+// and break the byte-identical guarantee between runs.
+rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
-for (const name of ['app', 'screenshots', 'dossier.json']) {
-  rmSync(join(outDir, name), { recursive: true, force: true });
-}
 cpSync(appSource, join(outDir, 'app'), { recursive: true, errorOnExist: true });
 cpSync(shotsSource, join(outDir, 'screenshots'), { recursive: true, errorOnExist: true });
 
 const dossier = buildDossier(outDir, {
   text_max_bytes: 163840,
-  screenshots: { max: LIMITS.shotCount, max_bytes: LIMITS.shotBytes },
-  app_max_files: LIMITS.appEntries,
-  app_max_bytes: LIMITS.appBytes,
-  app_path_max_bytes: LIMITS.pathBytes,
+  screenshots: { max: CAPS.shotCount, max_bytes: CAPS.shotBytes },
+  app_max_files: CAPS.appEntries,
+  app_max_bytes: CAPS.appBytes,
+  app_path_max_bytes: CAPS.pathBytes,
 });
 writeFileSync(join(outDir, 'dossier.json'), dossier);
 console.log(`ViceFrame handed in to ${outDir} (${shotNames.length} screenshots, dossier written)`);

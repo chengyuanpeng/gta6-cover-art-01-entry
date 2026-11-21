@@ -1,3 +1,4 @@
+/* ViceFrame editor chrome: a dark neon studio around the live cover canvas. */
 @font-face {
   font-family: Anton;
   src: url('../fonts/Anton-Regular.ttf') format('truetype');
@@ -26,7 +27,7 @@ body {
   font: 14px/1.45 Inter, ui-sans-serif, system-ui, sans-serif;
 }
 
-/* ---- top bar ---- */
+/* ---- Top bar ---- */
 .topbar {
   height: 70px;
   border-bottom: 1px solid #292735;
@@ -62,7 +63,7 @@ body {
 }
 
 .top-note {
-  margin-left: auto;
+  margin: 0 0 0 auto;
   color: #aaa9b8;
   font-size: 10px;
   letter-spacing: .17em;
@@ -93,7 +94,7 @@ body {
 
 .export b { padding-left: 13px; font-size: 16px; }
 
-/* ---- workspace ---- */
+/* ---- Workspace: controls on the left, preview on the right ---- */
 .workspace {
   max-width: 1510px;
   margin: auto;
@@ -107,6 +108,7 @@ body {
 .editor { max-width: 405px; }
 
 .eyebrow {
+  margin: 0;
   font-size: 9px;
   letter-spacing: .22em;
   color: #aaa8b8;
@@ -158,7 +160,7 @@ h1 em { font-style: normal; color: #ff68ab; }
   letter-spacing: .12em;
 }
 
-/* ---- template cards ---- */
+/* ---- Template cards ---- */
 .templates {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -168,7 +170,7 @@ h1 em { font-style: normal; color: #ff68ab; }
 
 .template {
   height: 91px;
-  background: #191925;
+  background: var(--panel);
   border: 1px solid #363444;
   color: #d9d7e2;
   border-radius: 8px;
@@ -227,7 +229,7 @@ h1 em { font-style: normal; color: #ff68ab; }
 .mini-hero { grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; }
 .mini-hero i:first-child { grid-row: span 2; }
 
-/* ---- photos ---- */
+/* ---- Photo upload and tray ---- */
 .upload {
   height: 55px;
   border: 1px dashed #565367;
@@ -283,10 +285,10 @@ h1 em { font-style: normal; color: #ff68ab; }
   display: block;
 }
 
-/* ---- text fields and controls ---- */
+/* ---- Text fields and controls ---- */
 .field-label { display: flex; gap: 9px; align-items: center; margin: 8px 0 7px; }
 
-.field-label b { color: #f8f6ff; }
+.field-label b { color: var(--white); }
 
 .text-input {
   width: 100%;
@@ -354,7 +356,7 @@ h1 em { font-style: normal; color: #ff68ab; }
 
 .hint span { color: var(--pink); margin-right: 5px; }
 
-/* ---- preview ---- */
+/* ---- Live preview ---- */
 .preview-area { min-width: 0; padding-top: 14px; }
 
 .preview-top,
@@ -435,7 +437,7 @@ h1 em { font-style: normal; color: #ff68ab; }
 .selected-tools {
   margin-top: 20px;
   padding: 12px 13px;
-  background: #191925;
+  background: var(--panel);
   border: 1px solid #393747;
   border-radius: 7px;
   display: flex;
@@ -564,7 +566,7 @@ input:focus-visible,
   .template > small { font-size: 6px; }
 }
 
-/* ---- screenshot mode: cover only, edge to edge ---- */
+/* Screenshot mode: the cover alone, edge to edge. */
 body.shot-cover { background: #100d1b; }
 body.shot-cover .topbar,
 body.shot-cover .editor,

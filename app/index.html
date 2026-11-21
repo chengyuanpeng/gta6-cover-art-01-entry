@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#10101b">
-  <meta name="description" content="ViceFrame turns your own photos into a bold, multi-panel city-night cover and exports it as a share-ready PNG.">
+  <meta name="description" content="ViceFrame turns photos from your own device into a bold multi-panel city-night cover and exports it as a PNG to share.">
   <title>ViceFrame — Cover Art Studio</title>
   <link rel="stylesheet" href="./src/style.css">
   <script type="module" src="./src/main.ts"></script>
@@ -12,13 +12,13 @@
 <body>
   <header class="topbar">
     <a class="brand" href="#" aria-label="ViceFrame home"><span class="brand-mark">V</span>VICE<span>FRAME</span></a>
-    <div class="top-note"><i></i> YOUR STORY. YOUR CITY.</div>
-    <button id="exportTop" class="export" type="button" aria-label="Export cover as PNG">Export PNG <b aria-hidden="true">↗</b></button>
+    <p class="top-note"><i></i>YOUR STORY. YOUR CITY.</p>
+    <button id="exportTop" class="export" type="button">Export PNG <b aria-hidden="true">↗</b></button>
   </header>
 
   <main class="workspace">
     <section class="editor" aria-label="Cover controls">
-      <div class="eyebrow">COVER ART STUDIO <span>•</span> 01 / CREATE</div>
+      <p class="eyebrow">COVER ART STUDIO <span>•</span> 01 / CREATE</p>
       <h1>Make it<br><em>legendary.</em></h1>
       <p class="intro">Your night, your city, your cover. Frame your photos, set the glow, and give it a headline worth posting.</p>
 
@@ -71,24 +71,24 @@
       </div>
 
       <div class="slider-row"><label for="intensity">COLOR WASH</label><input id="intensity" type="range" min="0" max="100" value="54"><output id="intensityValue">54%</output></div>
-      <div class="hint"><span>✦</span> Tip: click a panel in the preview to select it, then drag to reframe the photo inside.</div>
+      <p class="hint"><span>✦</span>Tip: click a panel in the preview to select it, then drag to reframe the photo inside.</p>
     </section>
 
     <section class="preview-area" aria-label="Live cover preview">
-      <div class="preview-top"><div><span class="live-dot"></span> LIVE PREVIEW <small>· UPDATES AS YOU EDIT</small></div><div class="canvas-size" id="sizeLabel">1920 × 1080 <span>▣</span></div></div>
+      <div class="preview-top"><div><span class="live-dot"></span>LIVE PREVIEW <small>· UPDATES AS YOU EDIT</small></div><div class="canvas-size" id="sizeLabel">1920 × 1080 <span>▣</span></div></div>
       <div class="canvas-wrap" id="canvasWrap">
         <canvas id="cover" width="1920" height="1080" aria-label="Cover art preview"></canvas>
         <div class="canvas-corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
         <div class="preview-tag">VICEFRAME ORIGINAL <span>✦</span></div>
       </div>
-      <div class="preview-bottom"><div><span class="keyboard-icon">↖</span> DRAG A PANEL TO REFRAME <b>·</b> CLICK TO SELECT</div><div class="page-indicator" aria-hidden="true"><span></span><span></span><span></span></div></div>
+      <div class="preview-bottom"><div><span class="keyboard-icon">↖</span>DRAG A PANEL TO REFRAME <b>·</b> CLICK TO SELECT</div><div class="page-indicator" aria-hidden="true"><span></span><span></span><span></span></div></div>
       <div class="selected-tools">
-        <span class="select-chip"><i></i> <b id="activePanel">PANEL 01</b> SELECTED</span>
+        <span class="select-chip"><i></i><b id="activePanel">PANEL 01</b> SELECTED</span>
         <label>FRAME ZOOM <input id="zoom" type="range" min="100" max="220" value="116"></label>
-        <button id="toneToggle" class="toggle on" type="button" aria-pressed="true"><span></span> PANEL TONE</button>
+        <button id="toneToggle" class="toggle on" type="button" aria-pressed="true"><span></span>PANEL TONE</button>
         <button id="addPhoto" class="add-photo" type="button">＋ ADD PHOTOS</button>
       </div>
-      <div class="footer-note"><span>✦</span> MADE FOR THE AFTER HOURS <span class="footer-line"></span> <span>1080P READY</span></div>
+      <p class="footer-note"><span>✦</span>MADE FOR THE AFTER HOURS <span class="footer-line"></span><span>1080P READY</span></p>
     </section>
   </main>
 

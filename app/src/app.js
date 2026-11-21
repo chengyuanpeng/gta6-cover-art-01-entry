@@ -1,8 +1,9 @@
-// ViceFrame studio: multi-panel cover composer on one 2D canvas.
-// Panels are polygons in normalized (0..1) coordinates, so every export
-// size shares the same layout. Photos stay on the device; nothing uploads.
+// ViceFrame studio: a multi-panel cover composer painted on one 2D canvas.
+// Every panel shape is written in normalized (0..1) coordinates, so a single
+// layout definition works at all three export sizes. Photos are read on this
+// machine only and are never uploaded anywhere.
 
-// --- layouts: slanted collage, tidy grid, and one big hero moment ---
+// Three frame layouts: a slanted collage, a tidy grid, one big hero moment.
 const LAYOUTS = {
   collage: [
     [[0, 0], [.31, 0], [.22, .48], [0, .61]],
@@ -25,7 +26,7 @@ const LAYOUTS = {
   ],
 };
 
-// --- colour stories: warm sunset vs electric neon ---
+// Colour stories: a warm dusk against an electric neon night.
 const MOODS = {
   sunset: { pink: [214, 46, 130], orange: [255, 126, 64], cyan: [53, 205, 213] },
   neon: { pink: [246, 30, 154], orange: [111, 54, 224], cyan: [25, 221, 224] },
@@ -40,9 +41,9 @@ export function bootStudio(root = document) {
   const canvas = $('cover');
   const ctx = canvas.getContext('2d');
 
-  const photos = [];      // { image, width, height }
-  const assigned = [];    // panel index -> photo index
-  const frames = [];      // panel index -> { x, y, z } crop offset + zoom
+  const photos = [];    // loaded pictures, in load order: { image, width, height }
+  const assigned = [];  // panel index -> photo index
+  const frames = [];    // panel index -> { x, y, z } crop offset and zoom
   let layout = 'collage';
   let active = 0;
   let drag = null;
@@ -77,7 +78,7 @@ export function bootStudio(root = document) {
     toastTimer = setTimeout(() => toast.classList.remove('show'), 2000);
   }
 
-  // --- the cover itself, drawn at full export resolution ---
+  // Paint the whole cover at the canvas's full export resolution.
   function drawCover() {
     const w = canvas.width;
     const h = canvas.height;
@@ -97,6 +98,7 @@ export function bootStudio(root = document) {
       const photo = photos[photoIndex];
       const frame = frames[i] || DEFAULT_FRAME;
       if (photo) {
+        // Cover-fit the photo into its panel, then apply the user's offset/zoom.
         const scale = Math.max(box.w / photo.width, box.h / photo.height) * frame.z;
         const dw = photo.width * scale;
         const dh = photo.height * scale;
@@ -108,7 +110,7 @@ export function bootStudio(root = document) {
           dh,
         );
       } else {
-        // Empty panel: a sunset gradient placeholder until a photo lands.
+        // No photo in this panel yet: a sunset gradient holds its place.
         const fallback = ctx.createLinearGradient(box.x, box.y, box.x + box.w, box.y + box.h);
         fallback.addColorStop(0, '#3b315d');
         fallback.addColorStop(.55, '#ba557c');
@@ -127,13 +129,13 @@ export function bootStudio(root = document) {
       }
       ctx.restore();
 
-      // Panel seams: the selected panel glows pink, the rest stay dark.
+      // Seams: the selected panel glows pink, the rest keep a dark edge.
       ctx.strokeStyle = i === active ? '#ff75ba' : '#171326';
       ctx.lineWidth = i === active ? Math.max(3, w / 420) : Math.max(7, w / 180);
       ctx.stroke(panelPath(poly, w, h));
     });
 
-    // A dusk shade over the lower half so the headline always reads.
+    // A dusk shade across the lower half keeps the headline readable.
     const shade = ctx.createLinearGradient(0, h * .48, 0, h);
     shade.addColorStop(0, 'transparent');
     shade.addColorStop(.48, rgba(mood.pink, .2));
@@ -144,7 +146,7 @@ export function bootStudio(root = document) {
     drawHeadline(w, h);
     drawCaptions(w, h);
 
-    // Fine grain for a printed-poster feel; positions are fixed, not random.
+    // Fine grain for a printed-poster feel, at fixed spots, never random.
     ctx.save();
     ctx.globalAlpha = .1;
     ctx.fillStyle = '#fff';
@@ -224,7 +226,7 @@ export function bootStudio(root = document) {
     ctx.fillText('VOL. 01  •  THE NIGHT IS YOURS', pad, h * .075);
   }
 
-  // --- sizing and selection ---
+  // Sizing and selection.
   function applySize() {
     const [w, h] = $('size').value.split('x').map(Number);
     canvas.width = w;
@@ -249,7 +251,7 @@ export function bootStudio(root = document) {
     });
   }
 
-  // --- photos ---
+  // Photos: uploads from the device plus the two bundled samples.
   function addPhoto(file, image) {
     const index = photos.push({ image, width: image.naturalWidth, height: image.naturalHeight }) - 1;
     const button = root.createElement('button');
@@ -291,7 +293,7 @@ export function bootStudio(root = document) {
     });
   }
 
-  // --- export ---
+  // Export the canvas at its full size as a PNG download.
   function exportPNG() {
     canvas.toBlob((blob) => {
       if (!blob) return showToast('PNG export failed');
@@ -306,7 +308,7 @@ export function bootStudio(root = document) {
     }, 'image/png');
   }
 
-  // --- wiring ---
+  // Wiring: controls, templates, and canvas pointer input.
   $('photoInput').onchange = (event) => {
     [...event.target.files].forEach(loadFile);
     event.target.value = '';
@@ -371,7 +373,7 @@ export function bootStudio(root = document) {
   canvas.onpointerup = () => { drag = null; };
   canvas.onpointercancel = () => { drag = null; };
 
-  // --- start: draw empty, load the two sample photos, honour ?shot= ---
+  // Start: paint the empty frame, load the bundled samples, honour ?shot=.
   applySize();
   const params = new URLSearchParams(location.search);
   const shot = params.get('shot');

@@ -1,4 +1,4 @@
-// ViceFrame browser entrypoint: wire the studio up once the page is ready.
+// ViceFrame browser entrypoint: boot the studio once the page is ready.
 import { bootStudio } from './app.js';
 
 function startStudio() {
